@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+    --color-bg: #0d0d0d;
+    --color-surface: #111111;
+    --color-surface-hover: #1a1a1a;
+    --color-surface-active: #222222;
+    --color-sidebar: #0a0a0a;
+    --color-border: #1e1e1e;
+    --color-border-light: #181818;
+    --color-text-primary: #e5e7eb;
+    --color-text-secondary: #6b7280;
+    --color-text-tertiary: #4b5563;
+    --color-accent: #8B8BF9;
+    --color-accent-dim: #6C6CF0;
+    --color-nav-active-bg: #1e1e2e;
+    --color-priority-urgent: #DC2626;
+    --color-priority-high: #D97706;
+    --color-priority-medium: #2563EB;
+    --color-priority-none: #374151;
+    --color-status-done: #3FB950;
+    --color-status-progress: #539BF5;
+    --color-status-todo: #4b5563;
+    --color-section-vencidas: #DC2626;
+    --color-section-urgentes: #DC2626;
+    --color-section-rotina: #7C3AED;
+    --color-section-alta: #D97706;
+
+    /* Tokens extras usados nos módulos novos */
+    --color-surface-secondary: #161616;
+    --color-surface-elevated: #171717;
+}
+
+/* Sidebar width var — atualizado por Sidebar.js via JS */
+:root { --sw: 200px; }
+
+* { box-sizing: border-box; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #222; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #333; }
+
+::selection { background: rgba(139, 139, 249, 0.2); }
+
+@keyframes slideInRight {
+    from { transform: translateX(20px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+}
