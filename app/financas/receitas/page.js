@@ -28,17 +28,22 @@ export default function ReceitasPage() {
     const totalRecebido = receitasDoMes.filter(r => r.status === 'recebido').reduce((acc, r) => acc + Number(r.valor || 0), 0)
 
     async function handleSalvar() {
+        if (!form.origem && !form.nome) { showToast('Informe a origem da receita', 'erro'); return }
+        if (!form.valor || parseFloat(form.valor) <= 0) { showToast('Informe um valor válido', 'erro'); return }
         setSalvando(true)
         try {
+            // Deriva mes_referencia da data_prevista se não informado
+            const dataPrevista = form.data_prevista || null
+            const mesRef = form.mes_referencia || (dataPrevista ? dataPrevista.substring(0, 7) : mesSelecionado)
             const payload = {
-                nome: form.nome,
+                nome: form.origem || form.nome || 'Receita',
                 valor: parseFloat(form.valor || 0),
-                data_prevista: form.data_prevista,
+                data_prevista: dataPrevista,
                 tipo: form.tipo || 'salário',
                 status: form.status || 'previsto',
                 origem: form.origem || null,
                 recorrente: form.recorrente || false,
-                mes_referencia: form.mes_referencia || mesSelecionado
+                mes_referencia: mesRef
             }
             if (editando === 'novo') {
                 await financeService.criarReceita(payload)

@@ -4,8 +4,11 @@ import { useState } from 'react'
 import { getPrioridadeConfig, getStatusConfig, isVencida, formatarData } from '@/app/lib/tarefas'
 import { Badge, PropRow, StatusBadge, PriorityBadge, TarefaCheckbox } from '@/app/components/ui'
 import { IconClock, IconCalendar, IconFolder, IconNotes, IconArea, IconPortfolio, IconFrequency, IconChevronDown } from '@/app/components/icons'
+import { useBulkSelect } from '@/app/contexts/BulkSelectContext'
 
 export default function TarefaCardDiaria({ tarefa, onToggle }) {
+    const { isSelectMode, selectedIds, toggleSelect } = useBulkSelect()
+    const isSelected = selectedIds.has(tarefa.id)
     const [expandido, setExpandido] = useState(false)
     const concluida = tarefa.status === 'Concluído'
     const vencida   = isVencida(tarefa)
@@ -13,14 +16,27 @@ export default function TarefaCardDiaria({ tarefa, onToggle }) {
     return (
         <div
             className={[
-                'bg-white rounded-xl border border-gray-200 overflow-hidden',
+                'group bg-white rounded-xl border overflow-hidden',
                 'transition-shadow duration-150 hover:shadow-md',
                 concluida ? 'opacity-60' : '',
+                isSelected ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-gray-200',
             ].join(' ')}
         >
             {/* Título */}
             <div className="flex items-center gap-3 px-4 pt-3.5 pb-2">
-                <TarefaCheckbox tarefa={tarefa} onToggle={onToggle} />
+                {isSelectMode ? (
+                    <button
+                        onClick={() => toggleSelect(tarefa.id)}
+                        className={[
+                            'w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 cursor-pointer bg-transparent transition-colors',
+                            isSelected ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-gray-300 hover:border-indigo-400',
+                        ].join(' ')}
+                    >
+                        {isSelected && <span className="text-[10px] font-bold">✓</span>}
+                    </button>
+                ) : (
+                    <TarefaCheckbox tarefa={tarefa} onToggle={onToggle} />
+                )}
                 <button
                     onClick={() => setExpandido(v => !v)}
                     className="flex-1 text-left bg-transparent border-0 p-0 cursor-pointer"
@@ -32,6 +48,14 @@ export default function TarefaCardDiaria({ tarefa, onToggle }) {
                         {tarefa.nome}
                     </span>
                 </button>
+                {/* Botão de entrar em modo seleção (aparece no hover) */}
+                {!isSelectMode && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); toggleSelect(tarefa.id) }}
+                        title="Selecionar"
+                        className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded border-2 border-gray-300 hover:border-indigo-400 flex items-center justify-center flex-shrink-0 cursor-pointer bg-transparent transition-all"
+                    />
+                )}
                 <button
                     onClick={() => setExpandido(v => !v)}
                     className={[

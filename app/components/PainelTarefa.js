@@ -13,17 +13,30 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
     const [showConfirm, setShowConfirm] = useState(false)
 
     // Subtarefas
-    const [subtarefas, setSubtarefas]       = useState([])
-    const [novaSubtarefa, setNovaSubtarefa] = useState('')
-    const [addingSubtask, setAddingSubtask] = useState(false)
+    const [subtarefas, setSubtarefas]         = useState([])
+    const [novaSubtarefa, setNovaSubtarefa]   = useState('')
+    const [novaSubPrazo, setNovaSubPrazo]     = useState('')
+    const [editSubId, setEditSubId]           = useState(null)
+    const [editSubPrazo, setEditSubPrazo]     = useState('')
+    const [addingSubtask, setAddingSubtask]   = useState(false)
     const inputSubRef = useRef(null)
+    const hoje = new Date().toISOString().split('T')[0]
+
+    // Vínculos (saúde / finanças)
+    const [vinculos, setVinculos]             = useState([])
+    const [showVinculoMenu, setShowVinculoMenu] = useState(false)
+    const [vinculoOpcoes, setVinculoOpcoes]   = useState([]) // [{tipo, id, nome}]
+    const [vinculoBusca, setVinculoBusca]     = useState('')
+    const [vinculoTipo, setVinculoTipo]       = useState('treino')
 
     // Reset quando muda de tarefa
     useEffect(() => {
         setForm(tarefa)
         setSubtarefas([])
         setNovaSubtarefa('')
+        setVinculos([])
         carregarSubtarefas(tarefa.id)
+        carregarVinculos(tarefa.id)
     }, [tarefa.id])
 
     async function carregarSubtarefas(tarefaId) {
@@ -40,12 +53,15 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
         const nome = novaSubtarefa.trim()
         if (!nome) return
         setNovaSubtarefa('')
+        setNovaSubPrazo('')
+        setAddingSubtask(false)
         const tempId = 'temp_' + Date.now()
-        const temp = { id: tempId, tarefa_id: tarefa.id, nome, concluido: false, criada_em: new Date().toISOString() }
+        const prazo = novaSubPrazo || null
+        const temp = { id: tempId, tarefa_id: tarefa.id, nome, concluido: false, prazo, criada_em: new Date().toISOString() }
         setSubtarefas(prev => [...prev, temp])
         const { data, error } = await supabase
             .from('subtarefas')
-            .insert({ tarefa_id: tarefa.id, nome, concluido: false })
+            .insert({ tarefa_id: tarefa.id, nome, concluido: false, prazo })
             .select()
             .single()
         if (!error && data) {
@@ -64,6 +80,60 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
     async function excluirSubtarefa(id) {
         setSubtarefas(prev => prev.filter(s => s.id !== id))
         await supabase.from('subtarefas').delete().eq('id', id)
+    }
+
+    async function carregarVinculos(tarefaId) {
+        const { data } = await supabase.from('tarefa_vinculos').select('*').eq('tarefa_id', tarefaId).order('criada_em')
+        setVinculos(data || [])
+    }
+
+    async function buscarVinculoOpcoes(tipo) {
+        setVinculoTipo(tipo)
+        setVinculoBusca('')
+        let data = []
+        if (tipo === 'treino') {
+            const { data: d } = await supabase.from('treinos').select('id, modalidade, data, duracao_min').order('data', { ascending: false }).limit(20)
+            data = (d || []).map(t => ({ tipo: 'treino', id: t.id, nome: `${t.modalidade} · ${t.data} · ${t.duracao_min}min` }))
+        } else if (tipo === 'meta') {
+            const { data: d } = await supabase.from('metas').select('id, titulo, status').order('criada_em', { ascending: false }).limit(20)
+            data = (d || []).map(m => ({ tipo: 'meta', id: m.id, nome: `${m.titulo} [${m.status || 'ativa'}]` }))
+        } else if (tipo === 'transacao') {
+            const { data: d } = await supabase.from('transacoes').select('id, descricao, valor, data').order('data', { ascending: false }).limit(20)
+            data = (d || []).map(t => ({ tipo: 'transacao', id: t.id, nome: `${t.descricao} · R$ ${Number(t.valor).toFixed(2)} · ${t.data}` }))
+        } else if (tipo === 'desafio') {
+            const { data: d } = await supabase.from('desafios').select('id, titulo, status').order('criada_em', { ascending: false }).limit(20)
+            data = (d || []).map(d2 => ({ tipo: 'desafio', id: d2.id, nome: `${d2.titulo} [${d2.status}]` }))
+        }
+        setVinculoOpcoes(data)
+    }
+
+    async function adicionarVinculo(opcao) {
+        const jaExiste = vinculos.some(v => v.tipo === opcao.tipo && v.referencia_id === opcao.id)
+        if (jaExiste) { showToast('Já vinculado!', 'erro'); return }
+        const payload = { tarefa_id: tarefa.id, tipo: opcao.tipo, referencia_id: opcao.id, referencia_nome: opcao.nome }
+        const { data, error } = await supabase.from('tarefa_vinculos').insert(payload).select().single()
+        if (error) { showToast(error.message, 'erro'); return }
+        setVinculos(prev => [...prev, data])
+        setShowVinculoMenu(false)
+        showToast('Vínculo adicionado!')
+    }
+
+    async function removerVinculo(id) {
+        await supabase.from('tarefa_vinculos').delete().eq('id', id)
+        setVinculos(prev => prev.filter(v => v.id !== id))
+    }
+
+    async function atualizarPrazoSub(id, prazo) {
+        setSubtarefas(prev => prev.map(s => s.id === id ? { ...s, prazo } : s))
+        await supabase.from('subtarefas').update({ prazo: prazo || null }).eq('id', id)
+        setEditSubId(null)
+    }
+
+    function subStatus(sub) {
+        if (!sub.prazo || sub.concluido) return null
+        if (sub.prazo < hoje) return 'vencida'
+        if (sub.prazo === hoje) return 'hoje'
+        return null
     }
 
     const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
@@ -230,6 +300,77 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
                         />
                     </div>
 
+                    {/* ── Vínculos Saúde / Finanças ── */}
+                    <div className="pt-1">
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="text-[12px] font-semibold text-text-secondary">
+                                Vínculos
+                                {vinculos.length > 0 && (
+                                    <span className="ml-1.5 text-[10px] font-medium text-text-tertiary bg-surface border border-border px-1.5 py-0.5 rounded-full">
+                                        {vinculos.length}
+                                    </span>
+                                )}
+                            </label>
+                            <button
+                                onClick={() => { setShowVinculoMenu(!showVinculoMenu); if (!showVinculoMenu) buscarVinculoOpcoes('treino') }}
+                                className="text-[11px] text-accent hover:text-accent/70 bg-transparent border-0 cursor-pointer transition-colors"
+                            >
+                                + Vincular
+                            </button>
+                        </div>
+
+                        {/* Menu de vínculos */}
+                        {showVinculoMenu && (
+                            <div className="bg-bg border border-border rounded-lg p-3 mb-2 space-y-2">
+                                {/* Tipo selector */}
+                                <div className="flex gap-1">
+                                    {[{v:'treino',l:'💪 Treino'},{v:'meta',l:'🎯 Meta'},{v:'transacao',l:'💰 Finanças'},{v:'desafio',l:'🏆 Desafio'}].map(({v,l}) => (
+                                        <button key={v} onClick={() => buscarVinculoOpcoes(v)}
+                                            className={`px-2 py-0.5 text-[10px] rounded border cursor-pointer transition-colors ${vinculoTipo === v ? 'bg-accent text-bg border-accent' : 'bg-transparent text-text-tertiary border-border'}`}
+                                        >{l}</button>
+                                    ))}
+                                </div>
+                                {/* Busca */}
+                                <input
+                                    value={vinculoBusca}
+                                    onChange={e => setVinculoBusca(e.target.value)}
+                                    placeholder="Filtrar..."
+                                    className="w-full text-[11px] bg-surface border border-border rounded px-2 py-1 outline-none text-text-primary"
+                                />
+                                {/* Lista de opções */}
+                                <div className="max-h-32 overflow-y-auto space-y-0.5">
+                                    {vinculoOpcoes.filter(o => !vinculoBusca || o.nome.toLowerCase().includes(vinculoBusca.toLowerCase())).map(o => (
+                                        <button key={o.id} onClick={() => adicionarVinculo(o)}
+                                            className="w-full text-left text-[11px] text-text-secondary hover:text-text-primary hover:bg-surface-hover px-2 py-1.5 rounded cursor-pointer bg-transparent border-0 transition-colors truncate"
+                                        >{o.nome}</button>
+                                    ))}
+                                    {vinculoOpcoes.length === 0 && (
+                                        <p className="text-[11px] text-text-tertiary text-center py-2">Nenhum registro encontrado</p>
+                                    )}
+                                </div>
+                                <button onClick={() => setShowVinculoMenu(false)} className="text-[10px] text-text-tertiary bg-transparent border-0 cursor-pointer w-full text-center hover:text-text-secondary">Fechar</button>
+                            </div>
+                        )}
+
+                        {/* Vínculos existentes */}
+                        {vinculos.length > 0 && (
+                            <div className="space-y-1">
+                                {vinculos.map(v => {
+                                    const icone = v.tipo === 'treino' ? '💪' : v.tipo === 'meta' ? '🎯' : v.tipo === 'transacao' ? '💰' : '🏆'
+                                    return (
+                                        <div key={v.id} className="group flex items-center gap-2 bg-surface border border-border rounded-lg px-2.5 py-1.5">
+                                            <span className="text-[11px] flex-shrink-0">{icone}</span>
+                                            <span className="text-[11px] text-text-secondary flex-1 truncate">{v.referencia_nome}</span>
+                                            <button onClick={() => removerVinculo(v.id)}
+                                                className="opacity-0 group-hover:opacity-100 text-text-tertiary hover:text-priority-urgent bg-transparent border-0 cursor-pointer p-0.5 transition-all"
+                                            >✕</button>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+                    </div>
+
                     {/* ── Subtarefas ── */}
                     <div className="pt-1">
                         <div className="flex items-center justify-between mb-2">
@@ -264,14 +405,20 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
 
                         {/* Lista de subtarefas */}
                         <div className="space-y-1">
-                            {subtarefas.map(sub => (
+                            {subtarefas.map(sub => {
+                                const status = subStatus(sub)
+                                return (
                                 <div
                                     key={sub.id}
-                                    className="group flex items-center gap-2.5 px-3 py-2 bg-surface border border-border rounded-lg hover:border-text-tertiary transition-colors"
+                                    className={`group flex items-start gap-2.5 px-3 py-2 border rounded-lg transition-colors ${
+                                        status === 'vencida' ? 'bg-red-950/20 border-red-900/40 hover:border-red-700/50' :
+                                        status === 'hoje'    ? 'bg-amber-950/20 border-amber-900/40 hover:border-amber-700/50' :
+                                        'bg-surface border-border hover:border-text-tertiary'
+                                    }`}
                                 >
                                     <button
                                         onClick={() => toggleSubtarefa(sub)}
-                                        className={`flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center cursor-pointer bg-transparent transition-all ${
+                                        className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center cursor-pointer bg-transparent transition-all ${
                                             sub.concluido
                                                 ? 'bg-[#16A34A] border-[#16A34A]'
                                                 : 'border-border hover:border-text-tertiary'
@@ -283,41 +430,77 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
                                             </svg>
                                         )}
                                     </button>
-                                    <span className={`flex-1 text-[12px] leading-snug ${sub.concluido ? 'line-through text-text-tertiary' : 'text-text-primary'}`}>
-                                        {sub.nome}
-                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                        <span className={`text-[12px] leading-snug ${sub.concluido ? 'line-through text-text-tertiary' : 'text-text-primary'}`}>
+                                            {sub.nome}
+                                        </span>
+                                        {/* Prazo da subtarefa */}
+                                        {editSubId === sub.id ? (
+                                            <div className="flex items-center gap-1 mt-1">
+                                                <input
+                                                    type="date"
+                                                    defaultValue={sub.prazo || ''}
+                                                    autoFocus
+                                                    onChange={e => setEditSubPrazo(e.target.value)}
+                                                    onBlur={() => atualizarPrazoSub(sub.id, editSubPrazo || sub.prazo)}
+                                                    onKeyDown={e => { if (e.key === 'Enter') atualizarPrazoSub(sub.id, editSubPrazo || sub.prazo); if (e.key === 'Escape') setEditSubId(null) }}
+                                                    className="text-[10px] bg-bg border border-border rounded px-1.5 py-0.5 outline-none text-text-primary [color-scheme:dark]"
+                                                />
+                                                {sub.prazo && (
+                                                    <button onClick={() => atualizarPrazoSub(sub.id, null)} className="text-[9px] text-text-tertiary hover:text-priority-urgent bg-transparent border-0 cursor-pointer">✕</button>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={() => { setEditSubId(sub.id); setEditSubPrazo(sub.prazo || '') }}
+                                                className={`block text-[10px] mt-0.5 bg-transparent border-0 cursor-pointer text-left ${
+                                                    status === 'vencida' ? 'text-red-400 font-medium' :
+                                                    status === 'hoje'    ? 'text-amber-400 font-medium' :
+                                                    sub.prazo ? 'text-text-tertiary' : 'text-text-tertiary/40 hover:text-text-tertiary'
+                                                }`}
+                                            >
+                                                {status === 'vencida' && '⚠ '}
+                                                {status === 'hoje' && '📅 '}
+                                                {sub.prazo ? sub.prazo : '+ prazo'}
+                                            </button>
+                                        )}
+                                    </div>
                                     <button
                                         onClick={() => excluirSubtarefa(sub.id)}
-                                        className="opacity-0 group-hover:opacity-100 text-text-tertiary hover:text-priority-urgent bg-transparent border-0 cursor-pointer p-0.5 transition-all"
+                                        className="opacity-0 group-hover:opacity-100 mt-0.5 text-text-tertiary hover:text-priority-urgent bg-transparent border-0 cursor-pointer p-0.5 transition-all"
                                     >
                                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                                         </svg>
                                     </button>
                                 </div>
-                            ))}
+                            )})}
 
                             {/* Input nova subtarefa */}
                             {addingSubtask && (
-                                <form onSubmit={adicionarSubtarefa} className="flex items-center gap-2">
+                                <form onSubmit={adicionarSubtarefa} className="space-y-2 bg-surface border border-accent/50 rounded-lg px-3 py-2">
                                     <input
                                         ref={inputSubRef}
                                         value={novaSubtarefa}
                                         onChange={e => setNovaSubtarefa(e.target.value)}
-                                        onBlur={() => { if (!novaSubtarefa.trim()) setAddingSubtask(false) }}
                                         onKeyDown={e => {
-                                            if (e.key === 'Escape') { setNovaSubtarefa(''); setAddingSubtask(false) }
+                                            if (e.key === 'Escape') { setNovaSubtarefa(''); setNovaSubPrazo(''); setAddingSubtask(false) }
                                         }}
                                         placeholder="Nome da subtarefa..."
-                                        className="flex-1 text-[12px] bg-surface border border-accent/50 rounded-lg px-3 py-2 outline-none focus:border-accent text-text-primary [color-scheme:dark] transition-colors"
+                                        className="w-full text-[12px] bg-transparent border-0 outline-none text-text-primary"
                                     />
-                                    <button
-                                        type="submit"
-                                        disabled={!novaSubtarefa.trim()}
-                                        className="px-3 py-2 text-[11px] font-medium bg-accent text-white rounded-lg border-0 cursor-pointer disabled:opacity-40 transition-opacity"
-                                    >
-                                        ↵
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="date"
+                                            value={novaSubPrazo}
+                                            onChange={e => setNovaSubPrazo(e.target.value)}
+                                            className="text-[11px] bg-bg border border-border rounded px-2 py-1 outline-none text-text-tertiary [color-scheme:dark] cursor-pointer"
+                                        />
+                                        <div className="flex gap-1 ml-auto">
+                                            <button type="button" onClick={() => { setNovaSubtarefa(''); setNovaSubPrazo(''); setAddingSubtask(false) }} className="px-2 py-1 text-[11px] text-text-tertiary bg-transparent border border-border rounded cursor-pointer">Cancelar</button>
+                                            <button type="submit" disabled={!novaSubtarefa.trim()} className="px-3 py-1 text-[11px] font-medium bg-accent text-white rounded border-0 cursor-pointer disabled:opacity-40">Adicionar</button>
+                                        </div>
+                                    </div>
                                 </form>
                             )}
 

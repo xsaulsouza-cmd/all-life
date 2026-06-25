@@ -1,0 +1,6 @@
+{
+  "name": "all-life",
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next"
+}

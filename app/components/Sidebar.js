@@ -149,6 +149,7 @@ function SidebarContent() {
                         { href: '/kanban', icon: '⬛', label: 'Kanban' },
                         { href: '/financas', icon: '💰', label: 'Finanças' },
                         { href: '/desafios', icon: '💪', label: 'Saúde & Esportes' },
+                        { href: '/configuracoes/areas', icon: '⚙️', label: 'Configurações' },
                     ].map(({ href, icon, label }) => {
                         const active = pathname.startsWith(href)
                         return (

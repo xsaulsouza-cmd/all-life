@@ -1,0 +1,76 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Configure Vercel environment variables
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VAL_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          VAL_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          VAL_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          VAL_GOOGLE_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          VAL_ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Get the Vercel project ID
+          PROJECT_RESP=$(curl -s "https://api.vercel.com/v9/projects/all-life" \
+            -H "Authorization: Bearer $VERCEL_TOKEN")
+          PROJECT_ID=$(echo "$PROJECT_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id', ''))" 2>/dev/null)
+
+          if [ -z "$PROJECT_ID" ]; then
+            echo "Could not find project ID, response: $PROJECT_RESP"
+            exit 0  # Don't fail - project may not exist yet, deploy will create it
+          fi
+
+          echo "Setting env vars for project: $PROJECT_ID"
+
+          add_env() {
+            local key="$1" val="$2"
+            PAYLOAD=$(python3 -c "
+          import json, sys
+          print(json.dumps({
+            'key': sys.argv[1],
+            'value': sys.argv[2],
+            'type': 'encrypted',
+            'target': ['production', 'preview', 'development']
+          }))" "$key" "$val")
+            RESP=$(curl -s -X POST "https://api.vercel.com/v10/projects/$PROJECT_ID/env" \
+              -H "Authorization: Bearer $VERCEL_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD")
+            # If env var already exists, update it
+            if echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('error',{}).get('code') == 'ENV_ALREADY_EXISTS' else 1)" 2>/dev/null; then
+              ENV_ID=$(echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error',{}).get('envVarId',''))" 2>/dev/null)
+              curl -s -X PATCH "https://api.vercel.com/v10/projects/$PROJECT_ID/env/$ENV_ID" \
+                -H "Authorization: Bearer $VERCEL_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "{\"value\": \"$val\"}" > /dev/null
+            fi
+            echo "Set $key: done"
+          }
+
+          add_env "NEXT_PUBLIC_SUPABASE_URL" "$VAL_SUPABASE_URL"
+          add_env "NEXT_PUBLIC_SUPABASE_ANON_KEY" "$VAL_SUPABASE_ANON_KEY"
+          add_env "NEXT_PUBLIC_GOOGLE_CLIENT_ID" "$VAL_GOOGLE_CLIENT_ID"
+          add_env "GOOGLE_CLIENT_SECRET" "$VAL_GOOGLE_SECRET"
+          add_env "ANTHROPIC_API_KEY" "$VAL_ANTHROPIC_KEY"
+
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prod --token=$VERCEL_TOKEN --yes

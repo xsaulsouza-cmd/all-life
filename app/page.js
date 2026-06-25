@@ -17,6 +17,8 @@ import ViewPorProjeto from '@/app/components/ViewPorProjeto'
 import PainelTarefa from '@/app/components/PainelTarefa'
 import CommandPalette from '@/app/components/CommandPalette'
 import ErrorBoundary from '@/app/components/ErrorBoundary'
+import BulkActionsBar from '@/app/components/BulkActionsBar'
+import { BulkSelectProvider } from '@/app/contexts/BulkSelectContext'
 
 // ─── View "Em Breve" ─────────────────────────────────────────────────────────
 
@@ -136,6 +138,17 @@ function HomeContent() {
     // PERF: Realtime INSERT já atualiza o estado — não precisa refetch
     function handleNovaTarefa() {}
 
+    // ─── Bulk actions ──────────────────────────────────────────────────
+    async function handleBulkDelete(ids) {
+        setTarefas(prev => prev.filter(t => !ids.includes(t.id)))
+        await Promise.all(ids.map(id => supabase.from('tarefas').delete().eq('id', id)))
+    }
+
+    async function handleBulkStatus(ids, status) {
+        setTarefas(prev => prev.map(t => ids.includes(t.id) ? { ...t, status } : t))
+        await Promise.all(ids.map(id => supabase.from('tarefas').update({ status, atualizada_em: new Date().toISOString() }).eq('id', id)))
+    }
+
     // ─── Info da view activa ─────────────────────────────────────────────
     const viewInfo = NAV_VIEWS.find(i => i.id === viewAtiva)
     const viewLabel = viewInfo?.label || 'Dashboard'
@@ -174,6 +187,7 @@ function HomeContent() {
     const tarefasAtivas = useMemo(() => tarefas.filter(t => t.status !== 'Concluído'), [tarefas])
 
     return (
+        <BulkSelectProvider onDelete={handleBulkDelete} onStatusChange={handleBulkStatus}>
         <div className="flex min-h-screen bg-bg overflow-x-hidden">
             <Sidebar />
 
@@ -221,14 +235,18 @@ function HomeContent() {
 
             {/* Painel Lateral Direito (Expandido) */}
             {tarefaSelecionada && (
-                <PainelTarefa 
-                    tarefa={tarefaSelecionada} 
+                <PainelTarefa
+                    tarefa={tarefaSelecionada}
                     onClose={() => setTarefaSelecionada(null)}
                     onUpdate={handleUpdateTarefa}
                     onDelete={handleDeleteTarefa}
                 />
             )}
+
+            {/* Bulk Actions Bar (flutuante) */}
+            <BulkActionsBar />
         </div>
+        </BulkSelectProvider>
     )
 }
 

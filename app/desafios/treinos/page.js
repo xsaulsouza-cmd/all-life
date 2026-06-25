@@ -8,6 +8,24 @@ import { showToast } from '@/app/lib/toast'
 
 const MODALIDADES = ['musculação', 'jiu-jitsu', 'pilates', 'corrida', 'outro']
 
+// MET (Equivalente Metabólico) por modalidade e intensidade
+// Fonte: Compendium of Physical Activities (Ainsworth et al.)
+const MET = {
+    'musculação': { leve: 3.5, moderada: 5.0, intensa: 6.0 },
+    'jiu-jitsu':  { leve: 5.0, moderada: 8.0, intensa: 10.0 },
+    'pilates':    { leve: 2.8, moderada: 3.5, intensa: 4.5 },
+    'corrida':    { leve: 7.0, moderada: 9.0, intensa: 11.0 },
+    'outro':      { leve: 4.0, moderada: 6.0, intensa: 8.0 },
+}
+
+// Calcula calorias estimadas
+// Calorias = MET × peso_kg × duração_horas
+function calcularCalorias(modalidade, intensidade, duracao_min, peso_kg = 78) {
+    const met = MET[modalidade]?.[intensidade] || 5
+    const horas = duracao_min / 60
+    return Math.round(met * peso_kg * horas)
+}
+
 const KPI_CONFIG = {
     'musculação': [
         { key: 'foco',   label: 'Grupo muscular / Foco',  placeholder: 'ex: Peito + Tríceps, Pernas...' },
@@ -81,13 +99,20 @@ export default function TreinosPage() {
         const notasLivres = form.notas || ''
         const notasFinal = [kpiStr, notasLivres].filter(Boolean).join('\n') || null
 
+        const duracao = parseInt(form.duracao_minutos) || 0
+        const caloriasAuto = calcularCalorias(form.modalidade, form.intensidade, duracao)
+        const calorias = form.calorias_gastas != null && form.calorias_gastas !== ''
+            ? parseInt(form.calorias_gastas)
+            : caloriasAuto
+
         const payload = {
             data: form.data,
             modalidade: form.modalidade,
             intensidade: form.intensidade,
-            duracao_minutos: parseInt(form.duracao_minutos) || 0,
+            duracao_minutos: duracao,
             notas: notasFinal,
-            concluido: form.concluido
+            concluido: form.concluido,
+            calorias_gastas: calorias,
         }
 
         try {
@@ -188,20 +213,30 @@ export default function TreinosPage() {
             </div>
 
             {/* KPIs */}
-            <div className="grid grid-cols-3 gap-4 mb-8">
-                <div className="bg-surface border border-border rounded-xl p-4">
-                    <span className="text-[11px] text-text-tertiary uppercase tracking-wider block mb-1">Treinos este mês</span>
-                    <span className="text-[24px] font-semibold text-text-primary">{treinosEsteMes.length}</span>
+            {(() => {
+                const caloriasTotal = treinosEsteMes.reduce((acc, t) => acc + (t.calorias_gastas || 0), 0)
+                return (
+                <div className="grid grid-cols-4 gap-4 mb-8">
+                    <div className="bg-surface border border-border rounded-xl p-4">
+                        <span className="text-[11px] text-text-tertiary uppercase tracking-wider block mb-1">Treinos este mês</span>
+                        <span className="text-[24px] font-semibold text-text-primary">{treinosEsteMes.length}</span>
+                    </div>
+                    <div className="bg-surface border border-border rounded-xl p-4">
+                        <span className="text-[11px] text-text-tertiary uppercase tracking-wider block mb-1">Horas Totais</span>
+                        <span className="text-[24px] font-semibold text-text-primary">{horasTotais}h</span>
+                    </div>
+                    <div className="bg-surface border border-border rounded-xl p-4">
+                        <span className="text-[11px] text-text-tertiary uppercase tracking-wider block mb-1">Calorias gastas</span>
+                        <span className="text-[24px] font-semibold text-orange-400">{caloriasTotal > 0 ? caloriasTotal.toLocaleString('pt-BR') : '—'}</span>
+                        {caloriasTotal > 0 && <span className="text-[10px] text-text-tertiary">kcal no mês</span>}
+                    </div>
+                    <div className="bg-surface border border-border rounded-xl p-4">
+                        <span className="text-[11px] text-text-tertiary uppercase tracking-wider block mb-1">Mais Frequente</span>
+                        <span className="text-[20px] font-semibold text-text-primary capitalize">{modFrequente}</span>
+                    </div>
                 </div>
-                <div className="bg-surface border border-border rounded-xl p-4">
-                    <span className="text-[11px] text-text-tertiary uppercase tracking-wider block mb-1">Horas Totais</span>
-                    <span className="text-[24px] font-semibold text-text-primary">{horasTotais}h</span>
-                </div>
-                <div className="bg-surface border border-border rounded-xl p-4">
-                    <span className="text-[11px] text-text-tertiary uppercase tracking-wider block mb-1">Mais Frequente</span>
-                    <span className="text-[20px] font-semibold text-text-primary capitalize">{modFrequente}</span>
-                </div>
-            </div>
+                )
+            })()}
 
             {/* Filtros */}
             <div className="flex gap-2 mb-6">
@@ -270,6 +305,9 @@ export default function TreinosPage() {
                                 <div className="text-right">
                                     <span className="block text-[13px] text-text-primary font-medium">{new Date(t.data + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
                                     <span className="text-[12px] text-text-tertiary">{t.duracao_minutos} min</span>
+                                    {t.calorias_gastas ? (
+                                        <span className="text-[11px] text-orange-400 font-medium block">🔥 {t.calorias_gastas} kcal</span>
+                                    ) : null}
                                 </div>
                                 <div className="flex gap-1 border-l border-border pl-3">
                                     <button 
@@ -347,6 +385,26 @@ export default function TreinosPage() {
                                         <option value="intensa">Intensa</option>
                                     </select>
                                 </div>
+                            </div>
+
+                            {/* Calorias */}
+                            <div>
+                                <label className={lbl}>
+                                    Calorias gastas (kcal)
+                                    <span className="ml-2 text-text-tertiary font-normal normal-case">
+                                        — estimativa: ~{calcularCalorias(form.modalidade, form.intensidade, parseInt(form.duracao_minutos) || 0)} kcal
+                                    </span>
+                                </label>
+                                <input
+                                    type="number"
+                                    className={inp}
+                                    placeholder={`${calcularCalorias(form.modalidade, form.intensidade, parseInt(form.duracao_minutos) || 0)} (automático)`}
+                                    value={form.calorias_gastas ?? ''}
+                                    onChange={e => setForm({...form, calorias_gastas: e.target.value})}
+                                />
+                                <p className="text-[10px] text-text-tertiary mt-1 m-0">
+                                    🔬 Baseado em MET ({MET[form.modalidade]?.[form.intensidade]} METs) × ~78 kg. Deixe em branco para usar a estimativa.
+                                </p>
                             </div>
                             <div>
                                 <label className={lbl}>Notas / Sensação</label>
