@@ -168,7 +168,6 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
         setSalvando(false)
         if (error) { showToast('Erro ao salvar: ' + error.message, 'erro'); return }
 
-        // Sincronizar com Google Calendar se houver event_id
         if (tarefa.calendar_event_id) {
             const statusMudou = form.status !== tarefa.status
             if (statusMudou) {
@@ -186,7 +185,6 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
         onUpdate(tarefa.id, payload)
         showToast('Tarefa atualizada!')
 
-        // Se acabou de ser marcada como Concluído e tem vínculos → abrir modal
         const foiConcluida = tarefa.status !== 'Concluído' && payload.status === 'Concluído'
         if (foiConcluida && vinculos.length > 0) {
             setShowConclusaoModal(true)
@@ -247,7 +245,6 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
                                         {p.nome}{p.area ? ` · ${p.area}` : ''}
                                     </option>
                                 ))}
-                                {/* Mantém valor atual mesmo se não estiver na lista */}
                                 {form.portfolio && !portfolios.find(p => p.nome === form.portfolio) && (
                                     <option value={form.portfolio}>{form.portfolio}</option>
                                 )}
@@ -336,7 +333,7 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
                         />
                     </div>
 
-                    {/* ── Vínculos Saúde / Finanças ── */}
+                    {/* Vínculos Saúde / Finanças */}
                     <div className="pt-1">
                         <div className="flex items-center justify-between mb-2">
                             <label className="text-[12px] font-semibold text-text-secondary">
@@ -355,10 +352,8 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
                             </button>
                         </div>
 
-                        {/* Menu de vínculos */}
                         {showVinculoMenu && (
                             <div className="bg-bg border border-border rounded-lg p-3 mb-2 space-y-2">
-                                {/* Tipo selector */}
                                 <div className="flex gap-1">
                                     {[{v:'treino',l:'💪 Treino'},{v:'meta',l:'🎯 Meta'},{v:'transacao',l:'💰 Finanças'},{v:'desafio',l:'🏆 Desafio'}].map(({v,l}) => (
                                         <button key={v} onClick={() => buscarVinculoOpcoes(v)}
@@ -366,14 +361,12 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
                                         >{l}</button>
                                     ))}
                                 </div>
-                                {/* Busca */}
                                 <input
                                     value={vinculoBusca}
                                     onChange={e => setVinculoBusca(e.target.value)}
                                     placeholder="Filtrar..."
                                     className="w-full text-[11px] bg-surface border border-border rounded px-2 py-1 outline-none text-text-primary"
                                 />
-                                {/* Lista de opções */}
                                 <div className="max-h-32 overflow-y-auto space-y-0.5">
                                     {vinculoOpcoes.filter(o => !vinculoBusca || o.nome.toLowerCase().includes(vinculoBusca.toLowerCase())).map(o => (
                                         <button key={o.id} onClick={() => adicionarVinculo(o)}
@@ -388,7 +381,6 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
                             </div>
                         )}
 
-                        {/* Vínculos existentes */}
                         {vinculos.length > 0 && (
                             <div className="space-y-1">
                                 {vinculos.map(v => {
@@ -407,7 +399,7 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
                         )}
                     </div>
 
-                    {/* ── Subtarefas ── */}
+                    {/* Subtarefas */}
                     <div className="pt-1">
                         <div className="flex items-center justify-between mb-2">
                             <label className="text-[12px] font-semibold text-text-secondary flex items-center gap-2">
@@ -426,7 +418,6 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
                             </button>
                         </div>
 
-                        {/* Barra de progresso */}
                         {total > 0 && (
                             <div className="mb-3">
                                 <div className="h-1 bg-surface rounded-full overflow-hidden">
@@ -439,7 +430,6 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
                             </div>
                         )}
 
-                        {/* Lista de subtarefas */}
                         <div className="space-y-1">
                             {subtarefas.map(sub => {
                                 const status = subStatus(sub)
@@ -470,7 +460,6 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
                                         <span className={`text-[12px] leading-snug ${sub.concluido ? 'line-through text-text-tertiary' : 'text-text-primary'}`}>
                                             {sub.nome}
                                         </span>
-                                        {/* Prazo da subtarefa */}
                                         {editSubId === sub.id ? (
                                             <div className="flex items-center gap-1 mt-1">
                                                 <input
@@ -512,7 +501,6 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
                                 </div>
                             )})}
 
-                            {/* Input nova subtarefa */}
                             {addingSubtask && (
                                 <form onSubmit={adicionarSubtarefa} className="space-y-2 bg-surface border border-accent/50 rounded-lg px-3 py-2">
                                     <input
@@ -550,4 +538,49 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
                 </div>
 
                 {/* Footer */}
-                <div classNam
+                <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-bg">
+                    <button
+                        onClick={() => setShowConfirm(true)}
+                        disabled={excluindo}
+                        className="text-[12px] font-medium text-priority-urgent hover:text-red-500 bg-transparent border-0 cursor-pointer disabled:opacity-50 transition-colors"
+                    >
+                        {excluindo ? 'Excluindo...' : 'Excluir tarefa'}
+                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={onClose}
+                            className="px-4 py-2 text-[12px] font-medium text-text-secondary bg-surface hover:bg-surface-hover border border-border rounded-lg cursor-pointer transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={handleSalvar}
+                            disabled={salvando}
+                            className="px-4 py-2 text-[12px] font-medium text-bg bg-text-primary hover:bg-text-secondary border-0 rounded-lg cursor-pointer disabled:opacity-50 transition-colors"
+                        >
+                            {salvando ? 'Salvando...' : 'Salvar alterações'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {showConfirm && (
+                <ModalConfirmacao
+                    titulo="Excluir tarefa?"
+                    mensagem="Esta ação não pode ser desfeita."
+                    onConfirmar={executarExclusao}
+                    onCancelar={() => setShowConfirm(false)}
+                    cor="urgente"
+                />
+            )}
+
+            {showConclusaoModal && vinculos.length > 0 && (
+                <ModalConclusaoVinculo
+                    tarefa={form}
+                    vinculos={vinculos}
+                    onClose={() => { setShowConclusaoModal(false); onClose() }}
+                />
+            )}
+        </div>
+    )
+}
