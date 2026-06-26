@@ -10,6 +10,30 @@ import { LoadingSkeleton, TarefaCheckbox } from '@/app/components/ui'
 import { supabase } from '@/lib/supabase'
 import { toSlug, ordenarPorPrioridade, GRUPOS_AREA } from '@/app/lib/tarefas'
 
+function ConcluídasSection({ tarefas, TarefaRow }) {
+    const [aberta, setAberta] = useState(false)
+    return (
+        <div>
+            <button
+                onClick={() => setAberta(v => !v)}
+                className="flex items-center gap-1.5 text-[12px] text-text-tertiary hover:text-text-secondary bg-transparent border-0 cursor-pointer py-1 transition-colors"
+            >
+                <svg width="8" height="8" viewBox="0 0 10 10" className={`transition-transform duration-100 ${aberta ? 'rotate-90' : ''}`}>
+                    <path d="M3 1l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                {aberta ? 'Esconder concluídas' : `Ver ${tarefas.length} concluída${tarefas.length > 1 ? 's' : ''}`}
+            </button>
+            {aberta && (
+                <div className="bg-surface border border-border rounded-xl overflow-hidden opacity-60 mt-1">
+                    <div className="divide-y divide-border">
+                        {tarefas.map(t => <TarefaRow key={t.id} t={t} />)}
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
+
 export default function PortfolioPage() {
     const params = useParams()
     const [loading, setLoading] = useState(true)
@@ -192,79 +216,47 @@ export default function PortfolioPage() {
                     </div>
 
                     {/* Task List */}
-                    <div className="bg-surface border border-border rounded-xl overflow-hidden">
-                        <div className="divide-y divide-border">
-                            {tarefas.map(t => {
-                                const concluida = t.status === 'Concluído'
-                                const isOverdue = t.prazo && new Date(t.prazo + 'T23:59:59') < new Date() && !concluida
-                                return (
-                                    <div
-                                        key={t.id}
-                                        onClick={() => setTarefaSelecionada(t)}
-                                        className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-hover/50 cursor-pointer transition-colors ${
-                                            concluida ? 'opacity-50' : ''
-                                        }`}
-                                    >
-                                        <TarefaCheckbox 
-                                            tarefa={t}
-                                            onToggle={handleToggleStatus}
-                                        />
-                                        
-                                        <span className={`text-[13px] flex-1 ${concluida ? 'line-through text-text-tertiary' : 'text-text-primary font-medium'}`}>
-                                            {t.nome}
-                                        </span>
+                    {(() => {
+                        const ativas = tarefas.filter(t => t.status !== 'Concluído')
+                        const concluidasList = tarefas.filter(t => t.status === 'Concluído')
 
-                                        <div className="flex items-center gap-3">
-                                            {priorityBadge(t.prioridade)}
+                        function TarefaRow({ t }) {
+                            const concluida = t.status === 'Concluído'
+                            const isOverdue = t.prazo && new Date(t.prazo + 'T23:59:59') < new Date() && !concluida
+                            return (
+                                <div
+                                    onClick={() => setTarefaSelecionada(t)}
+                                    className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-hover/50 cursor-pointer transition-colors ${concluida ? 'opacity-50' : ''}`}
+                                >
+                                    <TarefaCheckbox tarefa={t} onToggle={handleToggleStatus} />
+                                    <span className={`text-[13px] flex-1 ${concluida ? 'line-through text-text-tertiary' : 'text-text-primary font-medium'}`}>
+                                        {t.nome}
+                                    </span>
+                                    <div className="flex items-center gap-3">
+                                        {priorityBadge(t.prioridade)}
+                                        {t.tempo_estimado && (
+                                            <span className="text-[11px] text-text-tertiary bg-bg px-2 py-0.5 rounded border border-border">⏱️ {t.tempo_estimado}</span>
+                                        )}
+                                        {t.prazo && (
+                                            <span className={`text-[11px] px-2 py-0.5 rounded ${isOverdue ? 'text-white bg-[#DC2626]/80 font-semibold' : 'text-text-tertiary bg-bg border border-border'}`}>
+                                                📅 {new Date(t.prazo + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        }
 
-                                            {t.tempo_estimado && (
-                                                <span className="text-[11px] text-text-tertiary bg-bg px-2 py-0.5 rounded border border-border">
-                                                    ⏱️ {t.tempo_estimado}
-                                                </span>
-                                            )}
-
-                                            {t.prazo && (
-                                                <span className={`text-[11px] px-2 py-0.5 rounded ${
-                                                    isOverdue ? 'text-white bg-[#DC2626]/80 font-semibold' : 'text-text-tertiary bg-bg border border-border'
-                                                }`}>
-                                                    📅 {new Date(t.prazo + 'T12:00:00').toLocaleDateString('pt-BR')}
-                                                </span>
-                                            )}
+                        return (
+                            <>
+                                {/* Ativas */}
+                                {ativas.length > 0 && (
+                                    <div className="bg-surface border border-border rounded-xl overflow-hidden mb-3">
+                                        <div className="divide-y divide-border">
+                                            {ativas.map(t => <TarefaRow key={t.id} t={t} />)}
                                         </div>
                                     </div>
-                                )
-                            })}
-                            {tarefas.length === 0 && (
-                                <div className="text-center py-12 text-text-tertiary">
-                                    <span className="text-[24px] block mb-2">📋</span>
-                                    <p className="text-[13px] m-0">Nenhuma tarefa encontrada neste projeto.</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </main>
-            </div>
+                                )}
 
-            {/* PainelTarefa (drawer lateral direito) */}
-            {tarefaSelecionada && (
-                <PainelTarefa 
-                    tarefa={tarefaSelecionada} 
-                    onClose={() => setTarefaSelecionada(null)}
-                    onUpdate={handleUpdateTarefa}
-                    onDelete={handleDeleteTarefa}
-                />
-            )}
-
-            {showModal && (
-                <ModalNovaTarefa
-                    onClose={() => setShowModal(false)}
-                    onSalvar={() => { setShowModal(false); carregar() }}
-                    defaultValues={{
-                        area: area?.nome || '',
-                        projeto: nomeDoPortfolio || '',
-                    }}
-                />
-            )}
-        </div>
-    )
-}
+                                {/* Concluídas colapsáveis */}
+                                {concl
