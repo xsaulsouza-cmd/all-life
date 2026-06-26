@@ -36,6 +36,7 @@ export default function ReceitasPage() {
             const dataPrevista = form.data_prevista || null
             const mesRef = form.mes_referencia || (dataPrevista ? dataPrevista.substring(0, 7) : mesSelecionado)
             const payload = {
+                nome: form.origem || form.nome || 'Receita',
                 valor: parseFloat(form.valor || 0),
                 data_prevista: dataPrevista,
                 tipo: form.tipo || 'salário',
@@ -198,4 +199,3 @@ export default function ReceitasPage() {
         </div>
     )
 }
-                                                             

@@ -4,13 +4,16 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { STATUS_OPTIONS, PRIORIDADE_OPTIONS, AREA_GROUPS, FREQUENCIA_OPTIONS, DIA_SEMANA_OPTIONS } from '@/app/lib/tarefas'
 import ModalConfirmacao from './ModalConfirmacao'
+import ModalConclusaoVinculo from './ModalConclusaoVinculo'
 import { showToast } from '@/app/lib/toast'
 
 export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
     const [form, setForm]           = useState(tarefa)
     const [salvando, setSalvando]   = useState(false)
     const [excluindo, setExcluindo] = useState(false)
+    const [portfolios, setPortfolios] = useState([])
     const [showConfirm, setShowConfirm] = useState(false)
+    const [showConclusaoModal, setShowConclusaoModal] = useState(false)
 
     // Subtarefas
     const [subtarefas, setSubtarefas]         = useState([])
@@ -38,6 +41,13 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
         carregarSubtarefas(tarefa.id)
         carregarVinculos(tarefa.id)
     }, [tarefa.id])
+
+    // Carregar portfólios uma vez
+    useEffect(() => {
+        supabase.from('portfolios').select('id, nome, area').order('nome')
+            .then(({ data }) => setPortfolios(data || []))
+            .catch(() => {})
+    }, [])
 
     async function carregarSubtarefas(tarefaId) {
         const { data } = await supabase
@@ -175,7 +185,14 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
 
         onUpdate(tarefa.id, payload)
         showToast('Tarefa atualizada!')
-        onClose()
+
+        // Se acabou de ser marcada como Concluído e tem vínculos → abrir modal
+        const foiConcluida = tarefa.status !== 'Concluído' && payload.status === 'Concluído'
+        if (foiConcluida && vinculos.length > 0) {
+            setShowConclusaoModal(true)
+        } else {
+            onClose()
+        }
     }
 
     async function executarExclusao() {
@@ -218,7 +235,26 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
 
                     <div>
                         <label className={lbl}>Portfólio</label>
-                        <input value={form.portfolio || ''} onChange={e => set('portfolio', e.target.value)} className={inp} />
+                        {portfolios.length > 0 ? (
+                            <select
+                                value={form.portfolio || ''}
+                                onChange={e => set('portfolio', e.target.value)}
+                                className={inp}
+                            >
+                                <option value="">— Nenhum —</option>
+                                {portfolios.map(p => (
+                                    <option key={p.id} value={p.nome}>
+                                        {p.nome}{p.area ? ` · ${p.area}` : ''}
+                                    </option>
+                                ))}
+                                {/* Mantém valor atual mesmo se não estiver na lista */}
+                                {form.portfolio && !portfolios.find(p => p.nome === form.portfolio) && (
+                                    <option value={form.portfolio}>{form.portfolio}</option>
+                                )}
+                            </select>
+                        ) : (
+                            <input value={form.portfolio || ''} onChange={e => set('portfolio', e.target.value)} className={inp} placeholder="Nome do portfólio" />
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -514,41 +550,4 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-4 border-t border-border flex items-center justify-between bg-bg">
-                    <button
-                        onClick={() => setShowConfirm(true)}
-                        disabled={excluindo}
-                        className="text-[12px] font-medium text-priority-urgent hover:text-red-500 bg-transparent border-0 cursor-pointer disabled:opacity-50 transition-colors"
-                    >
-                        {excluindo ? 'Excluindo...' : 'Excluir tarefa'}
-                    </button>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={onClose}
-                            className="px-4 py-2 text-[12px] font-medium text-text-secondary bg-surface hover:bg-surface-hover border border-border rounded-lg cursor-pointer transition-colors"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={handleSalvar}
-                            disabled={salvando}
-                            className="px-4 py-2 text-[12px] font-medium text-bg bg-text-primary hover:bg-text-secondary border-0 rounded-lg cursor-pointer disabled:opacity-50 transition-colors"
-                        >
-                            {salvando ? 'Salvando...' : 'Salvar alterações'}
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {showConfirm && (
-                <ModalConfirmacao
-                    titulo="Excluir tarefa?"
-                    mensagem="Esta ação não pode ser desfeita."
-                    onConfirmar={executarExclusao}
-                    onCancelar={() => setShowConfirm(false)}
-                    cor="urgente"
-                />
-            )}
-        </div>
-    )
-}
+                <div classNam
