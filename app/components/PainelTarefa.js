@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { STATUS_OPTIONS, PRIORIDADE_OPTIONS, AREA_GROUPS, FREQUENCIA_OPTIONS, DIA_SEMANA_OPTIONS } from '@/app/lib/tarefas'
 import ModalConfirmacao from './ModalConfirmacao'
-import ModalConclusaoVinculo from './ModalConclusaoVinculo'
 import { showToast } from '@/app/lib/toast'
 
 export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
@@ -12,7 +11,6 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
     const [salvando, setSalvando]   = useState(false)
     const [excluindo, setExcluindo] = useState(false)
     const [showConfirm, setShowConfirm] = useState(false)
-    const [showConclusaoModal, setShowConclusaoModal] = useState(false)
 
     // Subtarefas
     const [subtarefas, setSubtarefas]         = useState([])
@@ -177,14 +175,7 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
 
         onUpdate(tarefa.id, payload)
         showToast('Tarefa atualizada!')
-
-        // Se acabou de ser marcada como Concluído e tem vínculos → abrir modal
-        const foiConcluida = tarefa.status !== 'Concluído' && payload.status === 'Concluído'
-        if (foiConcluida && vinculos.length > 0) {
-            setShowConclusaoModal(true)
-        } else {
-            onClose()
-        }
+        onClose()
     }
 
     async function executarExclusao() {
@@ -545,4 +536,19 @@ export default function PainelTarefa({ tarefa, onClose, onUpdate, onDelete }) {
                         >
                             {salvando ? 'Salvando...' : 'Salvar alterações'}
                         </button>
-               
+                    </div>
+                </div>
+            </div>
+
+            {showConfirm && (
+                <ModalConfirmacao
+                    titulo="Excluir tarefa?"
+                    mensagem="Esta ação não pode ser desfeita."
+                    onConfirmar={executarExclusao}
+                    onCancelar={() => setShowConfirm(false)}
+                    cor="urgente"
+                />
+            )}
+        </div>
+    )
+}
