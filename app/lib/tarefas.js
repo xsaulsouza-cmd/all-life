@@ -79,11 +79,12 @@ export function getAreaIcon(area) {
 // ─── Navegação (apenas views fixas — áreas vêm do Supabase) ──────────────────
 
 export const NAV_VIEWS = [
-    { id: 'hoje',        icon: '◉', label: 'Hoje' },
-    { id: 'dashboard',   icon: '▤', label: 'Dashboard' },
+    { id: 'dashboard',   icon: '◈', label: 'Dashboard' },
+    { id: 'hoje',        icon: '☀️', label: 'Hoje' },
     { id: 'semana',      icon: '▦', label: 'Semana' },
-    { id: 'gantt',       icon: '▬', label: 'Gantt' },
-    { id: 'recorrentes', icon: '⟳', label: 'Recorrentes' },
+    { id: 'mes',         icon: '📆', label: 'Mês' },
+    { id: 'gantt',       icon: '◫', label: 'Gantt & Projetos' },
+    { id: 'recorrentes', icon: '↻', label: 'Recorrentes' },
     { id: 'projetos',    icon: '⊞', label: 'Por Projeto' },
 ]
 
