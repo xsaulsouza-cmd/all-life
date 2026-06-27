@@ -383,7 +383,7 @@ function SidebarContent() {
                 {collapsed ? (
                     <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent text-[10px] font-bold" title="Saul Franco">S</div>
                 ) : (
-                    <div className="flex items-center(gap-2 px-1">
+                    <div className="flex items-center gap-2 px-1">
                         <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent text-[10px] font-bold flex-shrink-0">S</div>
                         <span className="text-[12px] text-text-secondary">Saul Franco</span>
                     </div>
