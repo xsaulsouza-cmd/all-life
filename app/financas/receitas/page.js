@@ -19,29 +19,29 @@ export default function ReceitasPage() {
     if (loading) return <div className="p-8"><LoadingSkeleton /></div>
     if (erro) return <div className="p-8 text-priority-urgent">⚠️ {erro}</div>
 
-    // Filtra as receitas do mês selecionado por mes_referencia
+    // Filtra as receitas do mês selecionado por data_prevista
     const receitasDoMes = receitas.filter(r => {
-        return r.mes_referencia === mesSelecionado || (r.data_prevista && r.data_prevista.startsWith(mesSelecionado))
+        const mesRef = r.mes_referencia ? String(r.mes_referencia).substring(0, 7) : null
+        const mesData = r.data_prevista ? r.data_prevista.substring(0, 7) : null
+        return mesRef === mesSelecionado || mesData === mesSelecionado
     }).sort((a, b) => new Date(a.data_prevista) - new Date(b.data_prevista))
 
     const totalPrevisto = receitasDoMes.reduce((acc, r) => acc + Number(r.valor || 0), 0)
     const totalRecebido = receitasDoMes.filter(r => r.status === 'recebido').reduce((acc, r) => acc + Number(r.valor || 0), 0)
 
     async function handleSalvar() {
-        if (!form.origem && !form.nome) { showToast('Informe a origem da receita', 'erro'); return }
+        if (!form.origem) { showToast('Informe a origem da receita', 'erro'); return }
         if (!form.valor || parseFloat(form.valor) <= 0) { showToast('Informe um valor válido', 'erro'); return }
+        if (!form.data_prevista) { showToast('Informe a data prevista', 'erro'); return }
         setSalvando(true)
         try {
-            const dataPrevista = form.data_prevista || null
-            const mesRef = form.mes_referencia || (dataPrevista ? dataPrevista.substring(0, 7) : mesSelecionado)
             const payload = {
                 valor: parseFloat(form.valor || 0),
-                data_prevista: dataPrevista,
+                data_prevista: form.data_prevista,
                 tipo: form.tipo || 'salário',
                 status: form.status || 'previsto',
-                origem: form.origem || null,
-                recorrente: form.recorrente || false,
-                mes_referencia: mesRef
+                origem: form.origem,
+                recorrente: form.recorrente || false
             }
             if (editando === 'novo') {
                 await financeService.criarReceita(payload)
@@ -111,7 +111,7 @@ export default function ReceitasPage() {
                 <div className="bg-surface border border-border rounded-xl p-5 mb-6">
                     <h3 className="text-[13px] font-semibold text-text-primary m-0 mb-4">{editando === 'novo' ? 'Nova Receita' : 'Editar Receita'}</h3>
                     <div className="grid grid-cols-2 gap-4 mb-4">
-                        <div><label className={lbl}>Origem</label><input className={inp} value={form.origem || ''} onChange={e => setForm(p => ({...p, origem: e.target.value}))} placeholder="Ex: Salário da Empresa" /></div>
+                        <div><label className={lbl}>Origem *</label><input className={inp} value={form.origem || ''} onChange={e => setForm(p => ({...p, origem: e.target.value}))} placeholder="Ex: Salário da Empresa" /></div>
                         <div>
                             <label className={lbl}>Tipo</label>
                             <select className={inp} value={form.tipo || 'salário'} onChange={e => setForm(p => ({...p, tipo: e.target.value}))}>
@@ -121,8 +121,8 @@ export default function ReceitasPage() {
                                 <option value="saldo anterior">Saldo Anterior</option>
                             </select>
                         </div>
-                        <div><label className={lbl}>Valor (R$)</label><input type="number" step="0.01" className={inp} value={form.valor || ''} onChange={e => setForm(p => ({...p, valor: e.target.value}))} /></div>
-                        <div><label className={lbl}>Data Prevista</label><input type="date" className={inp} value={form.data_prevista || ''} onChange={e => setForm(p => ({...p, data_prevista: e.target.value}))} /></div>
+                        <div><label className={lbl}>Valor (R$) *</label><input type="number" step="0.01" className={inp} value={form.valor || ''} onChange={e => setForm(p => ({...p, valor: e.target.value}))} /></div>
+                        <div><label className={lbl}>Data Prevista *</label><input type="date" className={inp} value={form.data_prevista || ''} onChange={e => setForm(p => ({...p, data_prevista: e.target.value}))} /></div>
                         <div>
                             <label className={lbl}>Status</label>
                             <select className={inp} value={form.status || 'previsto'} onChange={e => setForm(p => ({...p, status: e.target.value}))}>
@@ -146,24 +146,19 @@ export default function ReceitasPage() {
                 {receitasDoMes.map(r => (
                     <div key={r.id} className="bg-surface border border-border rounded-xl p-5 flex items-center justify-between group">
                         <div className="flex-1">
-                            <h3 className="text-[14px] font-medium text-text-primary m-0">{r.origem || r.nome} {r.recorrente && <span className="text-[10px] bg-surface-hover px-1.5 py-0.5 rounded ml-2 text-text-secondary">Recorrente</span>}</h3>
-                            <p className="text-[12px] text-text-tertiary m-0 mt-1 capitalize">{r.tipo} · Previsto para: {r.data_prevista}</p>
+                            <h3 className="text-[14px] font-medium text-text-primary m-0">{r.origem} {r.recorrente && <span className="text-[10px] bg-surface-hover px-1.5 py-0.5 rounded ml-2 text-text-secondary">Recorrente</span>}</h3>
+                            <p className="text-[12px] text-text-tertiary m-0 mt-1 capitalize">{r.tipo} · {r.data_prevista}</p>
                         </div>
                         <div className="flex items-center gap-6">
                             <div className="text-right">
                                 <span className={`text-[16px] font-semibold ${r.status === 'recebido' ? 'text-status-done' : 'text-text-primary'}`}>
                                     {formatCurrency(r.valor)}
                                 </span>
-                                <p className="text-[10px] text-text-tertiary m-0 mt-0.5 uppercase tracking-wide">
-                                    {r.status}
-                                </p>
+                                <p className="text-[10px] text-text-tertiary m-0 mt-0.5 uppercase tracking-wide">{r.status}</p>
                             </div>
                             <div className="flex items-center gap-2">
                                 {r.status === 'previsto' && (
-                                    <button 
-                                        onClick={() => handleConfirmar(r.id)}
-                                        className="px-3 py-1.5 text-[11px] font-medium bg-status-done text-bg hover:bg-[#32963f] rounded cursor-pointer border-0 transition-colors"
-                                    >
+                                    <button onClick={() => handleConfirmar(r.id)} className="px-3 py-1.5 text-[11px] font-medium bg-status-done text-bg hover:bg-[#32963f] rounded cursor-pointer border-0 transition-colors">
                                         ✓ Recebido
                                     </button>
                                 )}
