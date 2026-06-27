@@ -32,11 +32,9 @@ export default function ReceitasPage() {
         if (!form.valor || parseFloat(form.valor) <= 0) { showToast('Informe um valor válido', 'erro'); return }
         setSalvando(true)
         try {
-            // Deriva mes_referencia da data_prevista se não informado
             const dataPrevista = form.data_prevista || null
             const mesRef = form.mes_referencia || (dataPrevista ? dataPrevista.substring(0, 7) : mesSelecionado)
             const payload = {
-                nome: form.origem || form.nome || 'Receita',
                 valor: parseFloat(form.valor || 0),
                 data_prevista: dataPrevista,
                 tipo: form.tipo || 'salário',
@@ -109,7 +107,6 @@ export default function ReceitasPage() {
                 </div>
             </div>
 
-            {/* Modal inline de edição */}
             {editando && (
                 <div className="bg-surface border border-border rounded-xl p-5 mb-6">
                     <h3 className="text-[13px] font-semibold text-text-primary m-0 mb-4">{editando === 'novo' ? 'Nova Receita' : 'Editar Receita'}</h3>
@@ -145,7 +142,6 @@ export default function ReceitasPage() {
                 </div>
             )}
 
-            {/* Lista */}
             <div className="space-y-3">
                 {receitasDoMes.map(r => (
                     <div key={r.id} className="bg-surface border border-border rounded-xl p-5 flex items-center justify-between group">
@@ -162,7 +158,6 @@ export default function ReceitasPage() {
                                     {r.status}
                                 </p>
                             </div>
-                            
                             <div className="flex items-center gap-2">
                                 {r.status === 'previsto' && (
                                     <button 
@@ -198,4 +193,4 @@ export default function ReceitasPage() {
             )}
         </div>
     )
-}
+        }
