@@ -20,7 +20,7 @@ import ErrorBoundary from '@/app/components/ErrorBoundary'
 import BulkActionsBar from '@/app/components/BulkActionsBar'
 import { BulkSelectProvider } from '@/app/contexts/BulkSelectContext'
 
-// ─── View "Em Breve" ─────────────────────────────────────────────────────────
+// --- View "Em Breve" ---
 
 function ViewEmBreve({ label }) {
     return (
@@ -32,7 +32,7 @@ function ViewEmBreve({ label }) {
     )
 }
 
-// ─── Conteúdo Interno ─────────────────────────────────────────────────────────
+// --- Conteudo Interno ---
 
 function HomeContent() {
     const searchParams = useSearchParams()
@@ -46,11 +46,9 @@ function HomeContent() {
     const [tarefaSelecionada, setTarefaSelecionada] = useState(null)
     const [carregado,  setCarregado]  = useState(false)
     const [busca,      setBusca]      = useState('')
-    // Ref para o Realtime não precisar resubscrever a cada seleção de tarefa
     const tarefaSelecionadaRef = useRef(null)
     tarefaSelecionadaRef.current = tarefaSelecionada
 
-    // ─── Carregar tarefas ───────────────────────────────────────────────
     async function carregar() {
         const { data, error } = await supabase
             .from('tarefas')
@@ -68,8 +66,6 @@ function HomeContent() {
         if (!carregado) carregar()
     }, [carregado])
 
-    // ─── Supabase Realtime ──────────────────────────────────────────────
-    // PERF: usa ref para tarefaSelecionada → subscription nunca é recriada
     useEffect(() => {
         const channel = supabase
             .channel('tarefas-changes')
@@ -88,14 +84,11 @@ function HomeContent() {
             })
             .subscribe()
         return () => supabase.removeChannel(channel)
-    }, []) // sem deps → subscription criada 1x e nunca recriada
+    }, [])
 
-    // ─── Keyboard shortcuts ──────────────────────────────────────────────
     useEffect(() => {
         function handleKey(e) {
-            // Ignorar se estiver digitando em input/textarea/select
             if (['INPUT','TEXTAREA','SELECT'].includes(e.target?.tagName)) return
-
             if (e.key === 'n' || e.key === 'N') {
                 e.preventDefault()
                 setShowModal(true)
@@ -111,7 +104,6 @@ function HomeContent() {
         return () => window.removeEventListener('keydown', handleKey)
     }, [])
 
-    // ─── Toggle de status (3 estados) ──────────────────────────────────
     async function toggleTarefa(id, statusAtual) {
         const ciclo = { 'Não iniciada': 'Em andamento', 'Em andamento': 'Concluído', 'Concluído': 'Não iniciada' }
         const novoStatus = ciclo[statusAtual] || 'Em andamento'
@@ -122,23 +114,18 @@ function HomeContent() {
         }
     }
 
-    // ─── Atualizar Tarefa (do painel) ───────────────────────────────────
     function handleUpdateTarefa(id, updates) {
         setTarefas(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t))
         setTarefaSelecionada(p => ({ ...p, ...updates }))
     }
 
-  2 // ─── Excluir Tarefa (do painel) ─────────────────────────────────────
     function handleDeleteTarefa(id) {
         setTarefas(prev => prev.filter(t => t.id !== id))
         setTarefaSelecionada(null)
     }
 
-    // ─── Adicionar nova tarefa ──────────────────────────────────────────
-    // PERF: Realtime INSERT já atualiza o estado — não precisa refetch
     function handleNovaTarefa() {}
 
-    // ─── Bulk actions ──────────────────────────────────────────────────
     async function handleBulkDelete(ids) {
         setTarefas(prev => prev.filter(t => !ids.includes(t.id)))
         await Promise.all(ids.map(id => supabase.from('tarefas').delete().eq('id', id)))
@@ -149,21 +136,17 @@ function HomeContent() {
         await Promise.all(ids.map(id => supabase.from('tarefas').update({ status, atualizada_em: new Date().toISOString() }).eq('id', id)))
     }
 
-    // ─── Info da view activa ─────────────────────────────────────────────
     const viewInfo = NAV_VIEWS.find(i => i.id === viewAtiva)
     const viewLabel = viewInfo?.label || 'Dashboard'
     const viewIcon = viewInfo?.icon || ''
-    // PERF: memoizado para não reordenar em todo render (ex: ao abrir modal)
     const tarefasOrdenadas = useMemo(() => ordenarPorPrioridade(tarefas), [tarefas])
 
-    // Filtro de busca global
     const tarefasFiltradas = useMemo(() => {
         return busca.length >= 2
             ? tarefasOrdenadas.filter(t => t.nome.toLowerCase().includes(busca.toLowerCase()))
             : tarefasOrdenadas
     }, [busca, tarefasOrdenadas])
 
-    // ─── Render da view ─────────────────────────────────────────────────
     function renderView() {
         if (loading) return <LoadingSkeleton />
         if (erro) return (
@@ -204,7 +187,6 @@ function HomeContent() {
         }
     }
 
-    // PERF: memoizado — recalcula só quando tarefas muda
     const tarefasAtivas = useMemo(() => tarefas.filter(t => t.status !== 'Concluído'), [tarefas])
 
     return (
@@ -212,7 +194,6 @@ function HomeContent() {
         <div className="flex min-h-screen bg-bg overflow-x-hidden">
             <Sidebar />
 
-            {/* Modal */}
             {showModal && (
                 <ModalNovaTarefa
                     onClose={() => setShowModal(false)}
@@ -220,7 +201,6 @@ function HomeContent() {
                 />
             )}
 
-            {/* Command Palette */}
             {showPalette && (
                 <CommandPalette
                     tarefas={tarefas}
@@ -230,7 +210,6 @@ function HomeContent() {
                 />
             )}
 
-            {/* Área Principal */}
             <div className={`ml-[var(--sw)] flex-1 flex flex-col min-h-screen transition-all duration-300 ${tarefaSelecionada ? 'mr-[420px]' : ''}`}>
 
                 <Header
@@ -244,6 +223,34 @@ function HomeContent() {
                     onBusca={setBusca}
                 />
 
-                {/* Conteúdo scrollável */}
                 <main className="flex-1 px-8 py-6">
-                    <div className={['dashboard', 'gantt'].includes(viewAtiva) 
+                    <div className={['dashboard', 'gantt'].includes(viewAtiva) ? 'w-full' : 'max-w-[800px]'}>
+                        <ErrorBoundary titulo={`Erro na view "${viewLabel}"`}>
+                            {renderView()}
+                        </ErrorBoundary>
+                    </div>
+                </main>
+            </div>
+
+            {tarefaSelecionada && (
+                <PainelTarefa
+                    tarefa={tarefaSelecionada}
+                    onClose={() => setTarefaSelecionada(null)}
+                    onUpdate={handleUpdateTarefa}
+                    onDelete={handleDeleteTarefa}
+                />
+            )}
+
+            <BulkActionsBar />
+        </div>
+        </BulkSelectProvider>
+    )
+}
+
+export default function Home() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-bg flex items-center justify-center"><LoadingSkeleton /></div>}>
+            <HomeContent />
+        </Suspense>
+    )
+}
