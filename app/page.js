@@ -128,7 +128,7 @@ function HomeContent() {
         setTarefaSelecionada(p => ({ ...p, ...updates }))
     }
 
-    // ─── Excluir Tarefa (do painel) ─────────────────────────────────────
+  2 // ─── Excluir Tarefa (do painel) ─────────────────────────────────────
     function handleDeleteTarefa(id) {
         setTarefas(prev => prev.filter(t => t.id !== id))
         setTarefaSelecionada(null)
@@ -173,10 +173,31 @@ function HomeContent() {
         )
 
         switch (viewAtiva) {
+            case 'dashboard':   return (
+                <div className="flex gap-6 items-start">
+                    <div className="flex-1 min-w-0">
+                        <ViewDashboard tarefas={tarefasFiltradas} onToggle={toggleTarefa} onSelect={setTarefaSelecionada} />
+                    </div>
+                    <div className="w-[340px] flex-shrink-0 border-l border-border pl-6">
+                        <p className="text-[10px] font-semibold text-text-tertiary uppercase tracking-[0.08em] mb-3">☀️ Hoje</p>
+                        <ViewHoje tarefas={tarefasFiltradas} onToggle={toggleTarefa} onSelect={setTarefaSelecionada} />
+                    </div>
+                </div>
+            )
             case 'hoje':        return <ViewHoje        tarefas={tarefasFiltradas} onToggle={toggleTarefa} onSelect={setTarefaSelecionada} />
-            case 'dashboard':   return <ViewDashboard   tarefas={tarefasFiltradas} onToggle={toggleTarefa} onSelect={setTarefaSelecionada} />
             case 'semana':      return <ViewSemana      tarefas={tarefasFiltradas} onToggle={toggleTarefa} onSelect={setTarefaSelecionada} />
-            case 'gantt':       return <ViewGantt       tarefas={tarefasFiltradas} />
+            case 'mes':         return <ViewSemana      tarefas={tarefasFiltradas} onToggle={toggleTarefa} onSelect={setTarefaSelecionada} modo="mes" />
+            case 'gantt':       return (
+                <div className="flex gap-6 items-start">
+                    <div className="flex-1 min-w-0">
+                        <ViewGantt tarefas={tarefasFiltradas} />
+                    </div>
+                    <div className="w-[320px] flex-shrink-0 border-l border-border pl-6">
+                        <p className="text-[10px] font-semibold text-text-tertiary uppercase tracking-[0.08em] mb-3">🗂️ Por Projeto</p>
+                        <ViewPorProjeto tarefas={tarefasFiltradas} onToggle={toggleTarefa} onSelect={setTarefaSelecionada} />
+                    </div>
+                </div>
+            )
             case 'recorrentes': return <ViewRecorrentes tarefas={tarefasFiltradas} onToggle={toggleTarefa} onSelect={setTarefaSelecionada} />
             case 'projetos':    return <ViewPorProjeto  tarefas={tarefasFiltradas} onToggle={toggleTarefa} onSelect={setTarefaSelecionada} />
             default:            return <ViewEmBreve label={viewLabel} />
@@ -225,37 +246,4 @@ function HomeContent() {
 
                 {/* Conteúdo scrollável */}
                 <main className="flex-1 px-8 py-6">
-                    <div className={viewAtiva === 'dashboard' ? 'max-w-[900px]' : 'max-w-[800px]'}>
-                        <ErrorBoundary titulo={`Erro na view "${viewLabel}"`}>
-                            {renderView()}
-                        </ErrorBoundary>
-                    </div>
-                </main>
-            </div>
-
-            {/* Painel Lateral Direito (Expandido) */}
-            {tarefaSelecionada && (
-                <PainelTarefa
-                    tarefa={tarefaSelecionada}
-                    onClose={() => setTarefaSelecionada(null)}
-                    onUpdate={handleUpdateTarefa}
-                    onDelete={handleDeleteTarefa}
-                />
-            )}
-
-            {/* Bulk Actions Bar (flutuante) */}
-            <BulkActionsBar />
-        </div>
-        </BulkSelectProvider>
-    )
-}
-
-// ─── Componente Principal (com Suspense) ──────────────────────────────────────
-
-export default function Home() {
-    return (
-        <Suspense fallback={<div className="min-h-screen bg-bg flex items-center justify-center"><LoadingSkeleton /></div>}>
-            <HomeContent />
-        </Suspense>
-    )
-}
+                    <div className={['dashboard', 'gantt'].includes(viewAtiva) 
