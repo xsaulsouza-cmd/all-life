@@ -10,6 +10,7 @@ const NAV_ITEMS = [
     { href: '/financas',                label: 'Dashboard' },
     { href: '/financas/contas',         label: 'Contas' },
     { href: '/financas/receitas',       label: 'Receitas' },
+    { href: '/financas/despesas',       label: 'Despesas' },
     { href: '/financas/cartoes',        label: 'Cartões' },
     { href: '/financas/dividas',        label: 'Dívidas' },
     { href: '/financas/orcamento',      label: 'Orçamento' },
