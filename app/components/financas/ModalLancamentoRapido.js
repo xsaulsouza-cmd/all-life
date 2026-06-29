@@ -35,7 +35,7 @@ export default function ModalLancamentoRapido({ onClose }) {
 
     // Forms states
     const [formReceita, setFormReceita] = useState({
-        nome: '',
+        origem: '',
         valor: '',
         data_prevista: '',
         tipo: 'salário',
@@ -78,7 +78,7 @@ export default function ModalLancamentoRapido({ onClose }) {
         try {
             if (tipo === 'receita') {
                 await supabase.from('receitas').insert({
-                    nome: formReceita.nome,
+                    origem: formReceita.origem,
                     valor: parseFloat(formReceita.valor),
                     data_prevista: formReceita.data_prevista,
                     tipo: formReceita.tipo,
@@ -170,7 +170,7 @@ export default function ModalLancamentoRapido({ onClose }) {
                             <>
                                 <div>
                                     <label className={lbl}>Origem / Nome</label>
-                                    <input type="text" required className={inp} value={formReceita.nome} onChange={e => setFormReceita({...formReceita, nome: e.target.value})} placeholder="Ex: Salário da Empresa" />
+                                    <input type="text" required className={inp} value={formReceita.origem} onChange={e => setFormReceita({...formReceita, origem: e.target.value})} placeholder="Ex: Salário da Empresa" />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
@@ -179,7 +179,7 @@ export default function ModalLancamentoRapido({ onClose }) {
                                             <option value="salário">Salário</option>
                                             <option value="extra">Renda Extra</option>
                                             <option value="prestação de serviço">Prestação de Serviço</option>
-                                        </select>
+                                                 </select>
                                     </div>
                                     <div>
                                         <label className={lbl}>Status</label>
